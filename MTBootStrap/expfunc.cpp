@@ -276,6 +276,7 @@ public:
 			return false;
 
 		emit_db(0x60);		//pushad
+		/*
 #if _DEBUG
 emit_dw(0xC033);	//xor eax, eax
 emit_db(0x50);		//push eax
@@ -286,7 +287,7 @@ emit_db(0x50);		//push eax
 emit_db(0xB8);		//mov eax, MessageBoxW
 emit_dd((LONG)MessageBoxW);
 emit_dw(0xD0FF);	//call eax
-#endif
+#endif*/
 
 		emit_db(0x68);		//push dllpath
 		emit_dd((LONG)remoteaddr + offsetof(opcode_data, dllpath));
@@ -910,6 +911,7 @@ LPWSTR WINAPI GdippEnvironment(DWORD& dwCreationFlags, LPVOID lpEnvironment)
 		return NULL;
 	}
 
+/*
 #ifdef _DEBUG
 	{
 		LPWSTR tmp = strdupdb(pEnvW, 0);
@@ -929,7 +931,7 @@ LPWSTR WINAPI GdippEnvironment(DWORD& dwCreationFlags, LPVOID lpEnvironment)
 			free(tmp);
 		}
 	}
-#endif
+#endif*/
 
 	dwCreationFlags |= CREATE_UNICODE_ENVIRONMENT;
 	return pEnvW;

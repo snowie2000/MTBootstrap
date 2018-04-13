@@ -35,6 +35,137 @@ BOOL g_bDisableSign = false;
 BOOL g_bUseInclude = false;
 HMODULE g_hMacTypeDll = NULL;
 
+BOOL WINAPI IsRunAsUser(VOID)
+{
+	HANDLE hProcessToken = NULL;
+	DWORD groupLength = 50;
+
+	PTOKEN_GROUPS groupInfo = (PTOKEN_GROUPS)LocalAlloc(0,
+		groupLength);
+
+	SID_IDENTIFIER_AUTHORITY siaNt = SECURITY_NT_AUTHORITY;
+	PSID InteractiveSid = NULL;
+	PSID ServiceSid = NULL;
+	DWORD i;
+
+	// Start with assumption that process is an SERVICE, not a EXE;
+	BOOL fExe = FALSE;
+
+
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY,
+		&hProcessToken))
+		goto ret;
+
+	if (groupInfo == NULL)
+		goto ret;
+
+	if (!GetTokenInformation(hProcessToken, TokenGroups, groupInfo,
+		groupLength, &groupLength))
+	{
+		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+			goto ret;
+
+		LocalFree(groupInfo);
+		groupInfo = NULL;
+
+		groupInfo = (PTOKEN_GROUPS)LocalAlloc(0, groupLength);
+
+		if (groupInfo == NULL)
+			goto ret;
+
+		if (!GetTokenInformation(hProcessToken, TokenGroups, groupInfo,
+			groupLength, &groupLength))
+		{
+			goto ret;
+		}
+	}
+
+	//
+	//  We now know the groups associated with this token.  We want to look to	see if
+	//  the interactive group is active in the token, and if so, we know that
+	//  this is an interactive process.
+	//
+	//  We also look for the "service" SID, and if it's present, we know we're a service.
+	//
+	//  The service SID will be present iff the service is running in a
+	//  user account (and was invoked by the service controller).
+	//
+
+
+	if (!AllocateAndInitializeSid(&siaNt, 1, SECURITY_INTERACTIVE_RID, 0,
+		0,
+		0, 0, 0, 0, 0, &InteractiveSid))
+	{
+		goto ret;
+	}
+
+	if (!AllocateAndInitializeSid(&siaNt, 1, SECURITY_SERVICE_RID, 0, 0, 0,
+		0, 0, 0, 0, &ServiceSid))
+	{
+		goto ret;
+	}
+
+	for (i = 0; i < groupInfo->GroupCount; i += 1)
+	{
+		SID_AND_ATTRIBUTES sanda = groupInfo->Groups[i];
+		PSID Sid = sanda.Sid;
+
+		//
+		//  Check to see if the group we're looking at is one of
+		//  the 2 groups we're interested in.
+		//
+
+		if (EqualSid(Sid, InteractiveSid))
+		{
+			//
+			//  This process has the Interactive SID in its
+			//  token.  This means that the process is running as
+			//  an EXE.
+			//
+			fExe = true;
+			goto ret;
+		}
+		else if (EqualSid(Sid, ServiceSid))
+		{
+			//
+			//  This process has the Service SID in its
+			//  token.  This means that the process is running as
+			//  a service running in a user account.
+			//
+			fExe = FALSE;
+			goto ret;
+		}
+	}
+
+	//
+	//  Neither Interactive or Service was present in the current users token,
+	//  This implies that the process is running as a service, most likely
+	//  running as LocalSystem.
+	//
+	fExe = FALSE;
+
+ret:
+
+	if (InteractiveSid)
+		FreeSid(InteractiveSid);
+
+	if (ServiceSid)
+		FreeSid(ServiceSid);
+
+	if (groupInfo)
+		LocalFree(groupInfo);
+
+	if (hProcessToken)
+		CloseHandle(hProcessToken);
+
+	// 	EventLogging logger;
+	// 	TCHAR s[100] = { 0 };
+	// 	wsprintf(s, L"Loading processid %d, isUserProcess=%d", GetCurrentProcessId(), (int)fExe);
+	// 	LPCTSTR lpStrings[] = {s}; 
+	// 	logger.LogIt(1, 1, lpStrings, 1);
+	return(fExe);
+}
+
 //simple helper functions
 void ChangeFileName(LPWSTR lpSrc, int nSize, LPCWSTR lpNewFileName) {
 	for (int i = nSize; i > 0; --i){
@@ -191,6 +322,8 @@ bool IsProcessUnload() {
 	GetEnvironmentVariableW(L"MACTYPE_FORCE_LOAD", NULL, 0);	//env found, load anyway.
 	if (GetLastError() != ERROR_ENVVAR_NOT_FOUND)
 		return false;
+	if (!IsRunAsUser()) return true;	// it is a service or kernel system process
+
 	if (g_bUseInclude)
 	{
 		// include mode, only enable mactype for specified modules.
@@ -349,7 +482,7 @@ int __stdcall DllMain(HMODULE hDllHandle, DWORD dwReason, LPVOID lpreserved)
 		if (GetModuleHandle(MTDLL) != 0) {	//always load if Mactype is loaded
 			return true;
 		}
-		if (g_bIsUnload = IsProcessUnload()) return false;	//do not load if process is marked as unload
+		if (g_bIsUnload = IsProcessUnload()) return false;	//do not load if process is marked as unload or it is a service
 #ifndef MHOOK
 		if (!LoadEasyHook()) return false;
 #endif
@@ -373,13 +506,14 @@ int __stdcall DllMain(HMODULE hDllHandle, DWORD dwReason, LPVOID lpreserved)
 			}*/
 		}
 		if (!IsProcessExclude()) {	// do not load mactype core when excluded
-			if (GetModuleHandle(L"gdi32.dll") == 0) {
+			/*if (GetModuleHandle(L"gdi32.dll") == 0) {
 				ORIG_LdrLoadDll = LdrLoadDll;
 				hook_demand_LdrLoadDll(false);	//monitor gdi32.dll loading
 			}
-			else{
+			else{*/
+			//MessageBoxW(NULL, L"Hello there", NULL, MB_OK);
 				return LoadMacType();
-			}
+			//}
 		}
 		return true;
 	}
