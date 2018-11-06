@@ -1,6 +1,8 @@
 #include <windows.h>
 #include <parseini.h>
 #include <set>
+#include <string>
+#include <algorithm>
 #include "undocAPI.h"
 #include "hook.h"
 #include <xstring>
@@ -26,7 +28,9 @@
 #endif
 #endif
 
+typedef BOOL (WINAPI *TIsImmersiveProcess)(_In_ HANDLE hProcess);
 
+TIsImmersiveProcess IsUWP = (TIsImmersiveProcess)GetProcAddress(GetModuleHandle(L"user32.dll"), "IsImmersiveProcess");
 HMODULE g_inst = NULL;
 typedef set<wstring>	ModuleHashMap;
 ModuleHashMap g_UnloadList, g_ExcludeList, g_IncludeList;
@@ -37,6 +41,15 @@ HMODULE g_hMacTypeDll = NULL;
 
 BOOL WINAPI IsRunAsUser(VOID)
 {
+	if (IsUWP && IsUWP(GetCurrentProcess())) return true;	// treat all UWP apps as user exe
+
+	LPTSTR lpCmd = GetCommandLine();
+	std::wstring sCmd(lpCmd);
+	std::transform(sCmd.begin(), sCmd.end(), sCmd.begin(), ::tolower);
+	if (sCmd.find(L"dcomlaunch") != std::string::npos  && sCmd.find(L"svchost.exe") != std::string::npos) {
+		return true;
+	}
+
 	HANDLE hProcessToken = NULL;
 	DWORD groupLength = 50;
 
