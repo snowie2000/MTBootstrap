@@ -193,6 +193,7 @@ public:
 		//int 03hで埋める
 		FillMemory(this, sizeof(*this), 0xcc);
 	}
+
 	bool initWow64(LPDWORD remoteaddr, LONG orgEIP)	//Wow64ｳｼｻｯ
 	{
 		//WORD境界チェック
@@ -483,7 +484,11 @@ emit_dw(0xD0FF);	//call eax
 
 		//なぜかGetProcAddressでLoadLibraryWのアドレスが正しく取れないことがあるので
 		//kernel32のヘッダから自前で取得する
-		FARPROC pfn = GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW");
+		FARPROC pfn = (FARPROC)CDllHelper::MyGetProcAddress(GetModuleHandle(L"kernel32.dll"), L"LoadLibraryW");
+		/*WCHAR msg[500] = { 0 };
+		wsprintf(msg, L"API addr: 0x%I64x\r\nKernel32.dll: 0x%I64x\r\nKernelBase: 0x%I64x", (DWORD_PTR)pfn,
+			(DWORD_PTR)GetModuleHandle(L"kernel32.dll"), (DWORD_PTR)GetModuleHandle(L"kernelbase.dll"));
+		MessageBoxW(NULL, msg, NULL, MB_OK);*/
 		//if(!pfn)
 		//	return false;
 //		emit_db(0xEB);
