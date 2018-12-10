@@ -454,6 +454,7 @@ void * CDllHelper::MyGetProcAddress(HMODULE dllBase, wchar_t* procName) {
 
 			//Use Ordinal to Lookup Function Address and Calculate Absolute
 			unsigned int addr = ((unsigned int*)(dllBaseAddr + pExportDir->AddressOfFunctions))[NameOrdinal];
+			void* paddr = &((unsigned int*)(dllBaseAddr + pExportDir->AddressOfFunctions))[NameOrdinal];
 
 			//Function is forwarded
 			if (addr > pNtHeader->OptionalHeader.DataDirectory[0].VirtualAddress && addr < pNtHeader->OptionalHeader.DataDirectory[0].VirtualAddress + pNtHeader->OptionalHeader.DataDirectory[0].Size) {
@@ -476,6 +477,7 @@ void * CDllHelper::MyGetProcAddress(HMODULE dllBase, wchar_t* procName) {
 			}
 			else {
 				procAddr = (void*)(dllBaseAddr + addr);
+				procAddr = paddr;
 			}
 			break;
 		}
