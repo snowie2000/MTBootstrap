@@ -486,13 +486,13 @@ emit_dw(0xD0FF);	//call eax
 		//kernel32‚Ìƒwƒbƒ_‚©‚çŽ©‘O‚ÅŽæ“¾‚·‚é
 		FARPROC pfn = (FARPROC)CDllHelper::MyGetProcAddress(GetModuleHandle(L"kernel32.dll"), L"LoadLibraryW");
 		/*WCHAR msg[500] = { 0 };
-		wsprintf(msg, L"API paddr: 0x%I64x\r\nAPI addr: 0x%I64x\r\nKernel32.dll: 0x%I64x\r\nKernelBase: 0x%I64x", (DWORD_PTR)pfn, *(PWORD)pfn + GetModuleHandle(L"kernel32.dll"),
+		wsprintf(msg, L"API paddr: 0x%I64x\r\nOffset: %x\r\nAPI addr: 0x%I64x\r\nKernel32.dll: 0x%I64x\r\nKernelBase: 0x%I64x", (DWORD_PTR)pfn, *(PDWORD)pfn, *(PDWORD)pfn + (DWORD_PTR)GetModuleHandle(L"kernel32.dll"),
 			(DWORD_PTR)GetModuleHandle(L"kernel32.dll"), (DWORD_PTR)GetModuleHandle(L"kernelbase.dll"));
 		MessageBoxW(NULL, msg, NULL, MB_OK);*/
 		//if(!pfn)
 		//	return false;
-//		emit_db(0xEB);
-//		emit_db(0xFE);	// make a dead loop
+		//emit_db(0xEB);
+		//emit_db(0xFE);	// make a dead loop
 
 		emit_db(0x50);		//push rax
 		emit_db(0x51);		//push rcx
@@ -541,13 +541,17 @@ emit_dw(0xD0FF);	//call eax
 		emit_ddp((DWORD_PTR)remoteaddr + offsetof(opcode_data, dllpath));
 		emit_db(0x48);		//mov rsi, image base of kernel32.dll
 		emit_db(0xBE);		
-		emit_ddp(GetModuleHandle(L"kernel32.dll"));
+		emit_ddp((DWORD_PTR)GetModuleHandle(L"kernel32.dll"));
 		emit_db(0x48);		//mov rax, pfn(offset to &LoadLibraryW
 		emit_db(0xb8);
 		emit_ddp(DWORD_PTR(pfn));
-		emit_db(0x03);
-		emit_db(0x30);	// add esi ,[rax]
+		
+		emit_db(0x8b);
+		emit_db(0x00);	// mov eax, [rax]
 
+		emit_db(0x48);
+		emit_db(0x01);
+		emit_db(0xc6);	// add rsi,rax
 	
 		//emit_db(0x48);
 		emit_db(0xFF);	//call rdi
