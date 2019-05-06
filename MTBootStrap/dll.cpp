@@ -476,8 +476,10 @@ void * CDllHelper::MyGetProcAddress(HMODULE dllBase, wchar_t* procName) {
 				free(str_arr);*/
 			}
 			else {
-				procAddr = (void*)(dllBaseAddr + addr);
-				procAddr = paddr;
+				procAddr = (void*)(dllBaseAddr + addr);	// the real func addr, this is what we ought to use
+				// but in some cases, the IAT can be forged, meaning that the IAT we got here is not the real one in the file.
+				// hence, we only pass the offset of IAT to the shellcode, and let shellcode search for its IAT and caculate the function address there.
+				procAddr = paddr; // the offset to the func IAT, it's a DWORD, you get real address by (imgbase + *(dword*)(imgbase+paddr))
 			}
 			break;
 		}

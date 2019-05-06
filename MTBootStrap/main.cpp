@@ -377,7 +377,6 @@ bool IsProcessExclude() {
 
 bool IsExeUnload(LPCTSTR lpApp)	//检查是否在黑名单列表内
 {
-	return false;
 	GetEnvironmentVariableW(L"MACTYPE_FORCE_LOAD", NULL, 0);
 	if (GetLastError() != ERROR_ENVVAR_NOT_FOUND)
 		return false;

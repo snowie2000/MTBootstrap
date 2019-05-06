@@ -104,9 +104,10 @@ BOOL _CreateProcessInternalW(HANDLE hToken, LPCTSTR lpApp, LPTSTR lpCmd, LPSECUR
 	const bool hookCP = !!g_HookChildProc;
 	const bool runGdi = false;
 #endif
-
+	//::MessageBox(NULL, lpApp, L"Launching", MB_OK);
 	wstring exe_name = GetExeName(lpApp, lpCmd);
 	if (!hookCP || (!lpApp && !lpCmd) || (dwFlags & (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS)) || IsExeUnload(exe_name.c_str())) {
+		//::MessageBox(NULL, L"Unloaded application, ignored", L"Launching", MB_OK);
 		return fn(hToken, lpApp, lpCmd, pa, ta, bInherit, dwFlags, lpEnv, lpDir, psi, ppi, hNewToken);
 	}
 	LPWSTR pEnvW = GdippEnvironment(dwFlags, lpEnv);
@@ -120,6 +121,7 @@ BOOL _CreateProcessInternalW(HANDLE hToken, LPCTSTR lpApp, LPTSTR lpCmd, LPSECUR
 	}
 	GdippInjectDLL(ppi);
 	if (!(dwFlags & CREATE_SUSPENDED)) {
+		//::MessageBox(NULL, L"Ready to run", L"Launching", MB_OK);
 		ResumeThread(ppi->hThread);
 	}
 	free(pEnvW);

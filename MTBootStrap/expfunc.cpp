@@ -193,7 +193,6 @@ public:
 		//int 03hで埋める
 		FillMemory(this, sizeof(*this), 0xcc);
 	}
-
 	bool initWow64(LPDWORD remoteaddr, LONG orgEIP)	//Wow64ｳｼｻｯ
 	{
 		//WORD境界チェック
@@ -333,6 +332,7 @@ emit_dw(0xD0FF);	//call eax
 		emit_db(0x52);		//push rdx
 		emit_db(0x53);		//push rbx
 		emit_dd(0x28ec8348);	//sub rsp,28h
+
 		emit_db(0x48);		//mov rcx, dllpath
 		emit_db(0xB9);
 		emit_ddp((DWORD64)remoteaddr + offsetof(opcode_data, dllpath));
@@ -484,7 +484,7 @@ emit_dw(0xD0FF);	//call eax
 
 		//なぜかGetProcAddressでLoadLibraryWのアドレスが正しく取れないことがあるので
 		//kernel32のヘッダから自前で取得する
-		FARPROC pfn = (FARPROC)CDllHelper::MyGetProcAddress(GetModuleHandle(L"kernel32.dll"), L"LoadLibraryW");
+		FARPROC pfn = (FARPROC)((INT_PTR)CDllHelper::MyGetProcAddress(GetModuleHandle(L"kernel32.dll"), L"LoadLibraryW") - (INT_PTR)GetModuleHandle(L"kernel32.dll"));
 		/*WCHAR msg[500] = { 0 };
 		wsprintf(msg, L"API paddr: 0x%I64x\r\nOffset: %x\r\nAPI addr: 0x%I64x\r\nKernel32.dll: 0x%I64x\r\nKernelBase: 0x%I64x", (DWORD_PTR)pfn, *(PDWORD)pfn, *(PDWORD)pfn + (DWORD_PTR)GetModuleHandle(L"kernel32.dll"),
 			(DWORD_PTR)GetModuleHandle(L"kernel32.dll"), (DWORD_PTR)GetModuleHandle(L"kernelbase.dll"));
@@ -535,28 +535,71 @@ emit_dw(0xD0FF);	//call eax
 		emit_db(0xD6);
 		emit_dd(0x28c48348);
 */
+
+//shellcode to find imagebase of kernel32.dll (under x64)
+//rax will store the imagebase of kernel32.dll
+/*
+| 65 48 8B  | mov rax,qword ptr gs:[60]                                                  |
+| 48 8B 40  | mov rax,qword ptr ds:[rax+18]                                              |
+| 48 8B 40  | mov rax,qword ptr ds:[rax+30]                                              |
+| 48 8B 00  | mov rax,qword ptr ds:[rax]                                                 |
+| 48 8B 00  | mov rax,qword ptr ds:[rax]                                                 |
+| 48 8B 40  | mov rax,qword ptr ds:[rax+10]                                              |
+*/
+		emit_db(0x65);
+		emit_db(0x48);
+		emit_db(0x8B);
+		emit_db(0x04);
+		emit_db(0x25);
+		emit_db(0x60);
+		emit_db(0x00);
+		emit_db(0x00);
+		emit_db(0x00);
+		emit_db(0x48);
+		emit_db(0x8B);
+		emit_db(0x40);
+		emit_db(0x18);
+		emit_db(0x48);
+		emit_db(0x8B);
+		emit_db(0x40);
+		emit_db(0x30);
+		emit_db(0x48);
+		emit_db(0x8B);
+		emit_db(0x00);
+		emit_db(0x48);
+		emit_db(0x8B);
+		emit_db(0x00);
+		emit_db(0x48);
+		emit_db(0x8B);
+		emit_db(0x40);
+		emit_db(0x10);
+// === end of shellcode ===
+
 		emit_dd(0x28ec8348);	//sub rsp,28h
 		emit_db(0x48);		//mov rcx, dllpath
 		emit_db(0xB9);
 		emit_ddp((DWORD_PTR)remoteaddr + offsetof(opcode_data, dllpath));
-		emit_db(0x48);		//mov rsi, image base of kernel32.dll
-		emit_db(0xBE);		
-		emit_ddp((DWORD_PTR)GetModuleHandle(L"kernel32.dll"));
-		emit_db(0x48);		//mov rax, pfn(offset to &LoadLibraryW
-		emit_db(0xb8);
-		emit_ddp(DWORD_PTR(pfn));
 		
-		emit_db(0x8b);
-		emit_db(0x00);	// mov eax, [rax]
+		emit_db(0x48);	// mov rdx, rax
+		emit_db(0x89);
+		emit_db(0xC2);
 
+		emit_db(0x48);	// add rax, offset of LoadLibrary IAT 
+		emit_db(0x05);
+		emit_dd(pfn);
+
+/*  __asm:
+		mov eax,dword ptr ds:[rax]
+		add rdx,rax
+		call rdx
+*/
+		emit_db(0x8B);
+		emit_db(0x00);
 		emit_db(0x48);
 		emit_db(0x01);
-		emit_db(0xc6);	// add rsi,rax
-	
-		//emit_db(0x48);
-		emit_db(0xFF);	//call rdi
-		emit_db(0xD6);
-		//emit_db(0x16);
+		emit_db(0xC2);
+		emit_db(0xFF);
+		emit_db(0xD2);
 
 		emit_dd(0x28c48348);	//add rsp,28h
 		emit_db(0x5B);	
