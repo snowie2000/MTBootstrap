@@ -531,10 +531,11 @@ int __stdcall DllMain(HMODULE hDllHandle, DWORD dwReason, LPVOID lpreserved)
 	}
 	case DLL_PROCESS_DETACH:
 	{
+		int nMaxretry = 10;
 		if (!g_bIsUnload) {
 			if (g_hMacTypeDll && !lpreserved) {	// only freelibrary when freelibrary is called.
-				while (GetModuleHandle(MTDLL) == g_hMacTypeDll)
-					FreeLibrary(g_hMacTypeDll);	// free mactype.core.dll completely
+				while (GetModuleHandle(MTDLL) == g_hMacTypeDll && --nMaxretry>0)
+					if (!FreeLibrary(g_hMacTypeDll)) break;	// free mactype.core.dll completely
 			}
 			hook_term();
 		}
